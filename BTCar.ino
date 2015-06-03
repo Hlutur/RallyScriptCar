@@ -14,6 +14,8 @@ const int IN2 = 3;
 const int IN3 = 4;
 const int IN4 = 7;
 
+#define CARID "Rabbit"
+
 /** 
  * Ultrasonic Sensor
  */
@@ -57,7 +59,8 @@ void setup()
   myHead.attach(Head);
   // Serial
   Serial.begin(9600);
-  Serial.println("hallo");
+  Serial.print(CARID);
+  Serial.println(" ready to race!");
 }
 
 boolean fastForward = false;
@@ -155,6 +158,9 @@ void Forward()
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.println("/move|f|direction");
 }
 
 /** 
@@ -168,6 +174,9 @@ void Backward()
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.println("/move|b|direction");
 }
 
 /** 
@@ -181,6 +190,9 @@ void Right(int pwm)
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.println("/move|r|direction");
 }
 
 /**
@@ -194,6 +206,9 @@ void Left(int pwm)
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.println("/move|l|direction");
 }
 
 /** 
@@ -207,6 +222,9 @@ void Brake()
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, HIGH);
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.println("/move|stop|direction");
   delay(timeDelay);
 }
 
@@ -232,6 +250,11 @@ int getDistance()
   } else {
     _last = result;
   }
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.print("/dist|");
+  Serial.print(result);
+  Serial.println("|cm");
   return result;
 }
 
