@@ -1,4 +1,9 @@
-#include <Servo.h>
+#include <Arduino.h>
+#include <Wire.h>
+#include <HMC5883L_Simple.h>
+
+// Create a compass
+HMC5883L_Simple Compass;
 
 /**
  * Motor shield (L298N) 
@@ -22,10 +27,7 @@ const int IN4 = 7;
 const int TrigPin = 8;// 8;
 const int EchoPin = 9;// 9;
 const int Head = 11;
-// Position for Servo
-const int Central = 90;
-const int LeftPos = 160;
-const int RightPos = 20;
+
 // PWM
 const int PWM255 = 255;
 const int PWM128 = 128;
@@ -36,9 +38,9 @@ const int timeDelay = 30;
  * Global Variables
  */
 char incomingByte;
-Servo myHead;
+
 // safe distance 20 cm
-const int SafeDistance = 20;
+const int SafeDistance = 15;
 const int SafeSideDistance = 10;
 boolean stopFlag = false;
 
@@ -56,7 +58,38 @@ void setup()
   // Ultrasonic Sensor
   pinMode(TrigPin, OUTPUT);
   pinMode(EchoPin, INPUT);
-  myHead.attach(Head);
+  
+  // Compass
+  Wire.begin();
+  // Magnetic Declination is the correction applied according to your present location
+  // in order to get True North from Magnetic North, it varies from place to place.
+  // 
+  // The declination for your area can be obtained from http://www.magnetic-declination.com/
+  // Take the "Magnetic Declination" line that it gives you in the information, 
+  //
+  // Examples:
+  //   Christchurch, 23° 35' EAST
+  //   Wellington  , 22° 14' EAST
+  //   Dunedin     , 25° 8'  EAST
+  //   Auckland    , 19° 30' EAST
+  //   Bergen      ,  0° 28' EAST
+  Compass.SetDeclination(0, 28, 'E');  
+  
+  // The device can operate in SINGLE (default) or CONTINUOUS mode
+  //   SINGLE simply means that it takes a reading when you request one
+  //   CONTINUOUS means that it is always taking readings
+  // for most purposes, SINGLE is what you want.
+  Compass.SetSamplingMode(COMPASS_SINGLE);
+  
+  // The scale can be adjusted to one of several levels, you can probably leave it at the default.
+  // Essentially this controls how sensitive the device is.
+  //   Options are 088, 130 (default), 190, 250, 400, 470, 560, 810
+  // Specify the option as COMPASS_SCALE_xxx
+  // Lower values are more sensitive, higher values are less sensitive.
+  // The default is probably just fine, it works for me.  If it seems very noisy
+  // (jumping around), incrase the scale to a higher one.
+  Compass.SetScale(COMPASS_SCALE_810);
+  
   // Serial
   Serial.begin(9600);
   Serial.print(CARID);
@@ -68,6 +101,7 @@ boolean fastForward = false;
 void loop()
 {
     if (fastForward){
+        getHeading();
         if(!checkSafe()) {
           Brake();
           fastForward = false;
@@ -82,7 +116,8 @@ void loop()
     switch(incomingByte)
     {
     case 'f':
-      if(!stopFlag) {
+      //if(!stopFlag) {
+      {
         Forward();
         fastForward = true;
         if(!checkSafe()) {
@@ -154,10 +189,10 @@ void Forward()
 {
   analogWrite(ENA, PWM255);
   analogWrite(ENB, PWM255);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|f|direction");
@@ -170,13 +205,14 @@ void Backward()
 {
   analogWrite(ENA, PWM255);
   analogWrite(ENB, PWM255);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|b|direction");
+  getHeading();
 }
 
 /** 
@@ -193,6 +229,7 @@ void Right(int pwm)
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|r|direction");
+  getHeading();
 }
 
 /**
@@ -209,6 +246,7 @@ void Left(int pwm)
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|l|direction");
+  getHeading();
 }
 
 /** 
@@ -226,6 +264,22 @@ void Brake()
   Serial.print(CARID);
   Serial.println("/move|stop|direction");
   delay(timeDelay);
+}
+
+int getHeading()
+{
+  float heading = Compass.GetHeadingDegrees();
+  delayMicroseconds(5);
+  heading += Compass.GetHeadingDegrees();
+  delayMicroseconds(5);
+  heading += Compass.GetHeadingDegrees();
+  heading = heading / 3;
+  Serial.print("car/");
+  Serial.print(CARID);
+  Serial.print("/heading|");
+  Serial.print(heading);
+  Serial.println("|deg");
+  return 1;
 }
 
 /**
@@ -258,23 +312,13 @@ int getDistance()
   return result;
 }
 
-/**
- * Get Distance (Head Position)
- */
-int getDistanceAtPosition(int position) 
-{
-  myHead.write(position);
-  delay(timeDelay);
-  return getDistance();
-}
-
 /** 
  * Check Safety
  * @Return true: safe; false: danger (brake)
  */
 boolean checkSafe()
 {
-  int distance = getDistanceAtPosition(Central);
+  int distance = getDistance();
  // Serial.print("checksafe ");
  // Serial.println(distance);
   boolean flag = true;
@@ -285,46 +329,12 @@ boolean checkSafe()
 
 boolean leftSafe()
 {
-  boolean flag = true;
-  int dCenter = getDistanceAtPosition(Central);
-  int dLeft = getDistanceAtPosition(LeftPos);
-  if (dCenter < SafeDistance)
-  {
-    if (dCenter < SafeSideDistance)
-      flag = false;
-    else
-    {
-      if (dLeft < SafeDistance)
-        flag = false;
-      else
-        flag = true;
-    }
-  }
-  else
-    stopFlag = false; 
-  return flag;
+  return true; // Always safe without the servo
 }
 
 boolean rightSafe()
 {
-  boolean flag = true;
-  int dCenter = getDistanceAtPosition(Central);
-  int dRight = getDistanceAtPosition(RightPos);
-  if (dCenter < SafeDistance)
-  {
-    if (dCenter < SafeSideDistance)
-      flag = false;
-    else
-    {
-      if (dRight < SafeDistance)
-        flag = false;
-      else
-        flag = true;  
-    }
-  }
-  else
-    stopFlag = false; 
-  return flag;
+  return true; // Always safe without the servo
 }
 
 
