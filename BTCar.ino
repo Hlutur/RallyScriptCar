@@ -359,7 +359,6 @@ void StopMove()
 
 void getPixyBlocks()
 {
-  static int fetch_ = 0;
   int j;
   uint16_t blocks;
   char buf[32]; 
@@ -370,25 +369,18 @@ void getPixyBlocks()
   // If there are detect blocks, print them!
   if (blocks)
   {
-    fetch_++;
-    
-    // do this (print) every 50 frames because printing every
-    // frame would bog down the Arduino
-    if (true) // (fetch_%10==0)
+    int j;
+    for (j=0;j<blocks;j++)
     {
-      int j;
-      for (j=0;j<blocks;j++)
-      {
-        Serial.print("car/");
-        Serial.print(CARID);
-        Serial.print("/cc/");
-        Serial.print(pixy.blocks[j].signature,OCT);
-        Serial.print("/{x:");
-        Serial.print(pixy.blocks[j].x);
-        Serial.print(",w:");
-        Serial.print(pixy.blocks[j].width);
-        Serial.println("}");
-      }
+      Serial.print("car/");
+      Serial.print(CARID);
+      Serial.print("/cc/");
+      Serial.print(pixy.blocks[j].signature,OCT);
+      Serial.print("/{x:");
+      Serial.print(pixy.blocks[j].x);
+      Serial.print(",w:");
+      Serial.print(pixy.blocks[j].width);
+      Serial.println("}");
     }
   }    
 }
