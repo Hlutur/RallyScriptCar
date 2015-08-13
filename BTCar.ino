@@ -1,9 +1,14 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <HMC5883L_Simple.h>
+#include <SPI.h>  
+#include <Pixy.h>
 
 // Create a compass
 HMC5883L_Simple Compass;
+
+// Create Pixy camera
+Pixy pixy;
 
 /**
  * Motor shield (L298N) 
@@ -90,8 +95,11 @@ void setup()
   // (jumping around), incrase the scale to a higher one.
   Compass.SetScale(COMPASS_SCALE_810);
   
+  // Pixy-cam
+  pixy.init();
+  
   // Serial
-  Serial.begin(9600);
+  Serial.begin(19200);
   Serial.print(CARID);
   Serial.println(" ready to race!");
 }
@@ -279,6 +287,7 @@ int getHeading()
   Serial.print("/heading|");
   Serial.print(heading);
   Serial.println("|deg");
+  getPixyBlocks();
   return 1;
 }
 
@@ -346,5 +355,41 @@ void StopMove()
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
+}
+
+void getPixyBlocks()
+{
+  static int fetch_ = 0;
+  int j;
+  uint16_t blocks;
+  char buf[32]; 
+  
+  // grab blocks!
+  blocks = pixy.getBlocks();
+  
+  // If there are detect blocks, print them!
+  if (blocks)
+  {
+    fetch_++;
+    
+    // do this (print) every 50 frames because printing every
+    // frame would bog down the Arduino
+    if (true) // (fetch_%10==0)
+    {
+      int j;
+      for (j=0;j<blocks;j++)
+      {
+        Serial.print("car/");
+        Serial.print(CARID);
+        Serial.print("/cc/");
+        Serial.print(pixy.blocks[j].signature,OCT);
+        Serial.print("/{x:");
+        Serial.print(pixy.blocks[j].x);
+        Serial.print(",w:");
+        Serial.print(pixy.blocks[j].width);
+        Serial.println("}");
+      }
+    }
+  }    
 }
 
