@@ -1,3 +1,5 @@
+// RallyScript
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <HMC5883L_Simple.h>
@@ -48,6 +50,11 @@ char incomingByte;
 const int SafeDistance = 15;
 const int SafeSideDistance = 10;
 boolean stopFlag = false;
+
+boolean rFindCC = false;
+boolean lFindCC = false;
+long findDir = 0.0;
+char findThisCC[10]= "";
 
 void setup() 
 {
@@ -181,6 +188,15 @@ void loop()
       fastForward = false;
       Brake();
       break;
+    case '>': // find CC, turn right
+      rFindCC = true;
+      lFindCC = false;
+      initFindCC();
+      break;
+    case '<': // find CC, turn left
+      rFindCC = false;
+      lFindCC = true;
+      initFindCC();
     default:
       break;  
     } //Switch
@@ -383,5 +399,21 @@ void getPixyBlocks()
       Serial.println("}");
     }
   }    
+}
+
+void initFindCC()
+{
+  // 1. Read initial bearing
+  // 2. Parse string representing CC to find
+}
+
+void findCC()
+{
+  // 1. Check if correct CC is within tolerance
+  // 2. If not - Check if past initial bearing. 
+  //       If true notify CC not found on MQTT
+  //     else 
+  //       Rotate a step in correct direction
+  // 3. If found, publish on MQTT
 }
 
