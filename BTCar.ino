@@ -54,7 +54,7 @@ boolean stopFlag = false;
 boolean rFindCC = false;
 boolean lFindCC = false;
 long findDir = 0.0;
-char findThisCC[10]= "";
+String findThisCC = "";
 
 void setup() 
 {
@@ -404,12 +404,16 @@ void getPixyBlocks()
 void initFindCC()
 {
   // 1. Read initial bearing
+  findDir = getHeading();
   // 2. Parse string representing CC to find
+  int _cc = Serial.parseInt();
+  findThisCC = String(_cc);
 }
 
 void findCC()
 {
   // 1. Check if correct CC is within tolerance
+  long currentDir = getHeading();
   // 2. If not - Check if past initial bearing. 
   //       If true notify CC not found on MQTT
   //     else 
