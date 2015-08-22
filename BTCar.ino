@@ -55,6 +55,7 @@ boolean rFindCC = false;
 boolean lFindCC = false;
 float findDir = 0.0;
 String findThisCC = String("");
+boolean _ccInRange = false;
 
 void setup() 
 {
@@ -73,33 +74,11 @@ void setup()
   
   // Compass
   Wire.begin();
-  // Magnetic Declination is the correction applied according to your present location
-  // in order to get True North from Magnetic North, it varies from place to place.
-  // 
   // The declination for your area can be obtained from http://www.magnetic-declination.com/
-  // Take the "Magnetic Declination" line that it gives you in the information, 
-  //
-  // Examples:
-  //   Christchurch, 23° 35' EAST
-  //   Wellington  , 22° 14' EAST
-  //   Dunedin     , 25° 8'  EAST
-  //   Auckland    , 19° 30' EAST
   //   Bergen      ,  0° 28' EAST
   Compass.SetDeclination(0, 28, 'E');  
-  
-  // The device can operate in SINGLE (default) or CONTINUOUS mode
-  //   SINGLE simply means that it takes a reading when you request one
-  //   CONTINUOUS means that it is always taking readings
-  // for most purposes, SINGLE is what you want.
   Compass.SetSamplingMode(COMPASS_SINGLE);
-  
-  // The scale can be adjusted to one of several levels, you can probably leave it at the default.
-  // Essentially this controls how sensitive the device is.
-  //   Options are 088, 130 (default), 190, 250, 400, 470, 560, 810
-  // Specify the option as COMPASS_SCALE_xxx
-  // Lower values are more sensitive, higher values are less sensitive.
-  // The default is probably just fine, it works for me.  If it seems very noisy
-  // (jumping around), incrase the scale to a higher one.
+  // Sensitivity: Options are 088, 130 (default), 190, 250, 400, 470, 560, 810
   Compass.SetScale(COMPASS_SCALE_810);
   
   // Pixy-cam
@@ -201,6 +180,8 @@ void loop()
       rFindCC = false;
       lFindCC = true;
       initFindCC();
+    case 'h': // auto home on CC. no parameters clears home mode
+      initHome();
     default:
       break;  
     } //Switch
@@ -383,6 +364,8 @@ void getPixyBlocks()
   uint16_t blocks;
   char buf[32]; 
   
+  _ccInRange = false;
+  
   // grab blocks!
   blocks = pixy.getBlocks();
   
@@ -392,21 +375,32 @@ void getPixyBlocks()
     int j;
     for (j=0;j<blocks;j++)
     {
+      int x = pixy.blocks[j].x;
+
       Serial.print("car/");
       Serial.print(CARID);
       Serial.print("/cc/");
       Serial.print(pixy.blocks[j].signature,OCT);
       Serial.print("/{x:");
-      Serial.print(pixy.blocks[j].x);
+      Serial.print(x);
       Serial.print(",w:");
       Serial.print(pixy.blocks[j].width);
       Serial.println("}");
+      
+      String block = String(pixy.blocks[j].signature,OCT);
+      if (block.equals(findThisCC)){
+        if ((x>89)&&(x<111)){
+          _ccInRange = true;
+        }
+      }      
     }
   }    
 }
 
 boolean CCinRange()
 {
+  return _ccInRange;
+  /*
     int j;
   uint16_t blocks;
   char buf[32]; 
@@ -430,7 +424,8 @@ boolean CCinRange()
       }
     }
   }
-  return false;  
+  return false; 
+ */ 
 }
 
 static int turns = 0;
@@ -442,15 +437,15 @@ void initFindCC()
   turns = 0;
   check_for_turn = false;
   // 2. Parse string representing CC to find
-  int _cc = Serial.parseInt();
-  if (_cc == 0){
+  int cc = Serial.parseInt();
+  if (cc == 0){
     // invalid
     rFindCC = false;
     lFindCC = false;
     Brake();
     return;
   }
-  findThisCC = String(_cc);
+  findThisCC = String(cc);
   Serial.print("Leter etter ");Serial.println(findThisCC);
 }
 
@@ -491,5 +486,16 @@ void findCC()
       Serial.println("/InRange|false");
     }
   }
+}
+
+void initHome()
+{
+  int cc = Serial.parseInt();
+  if (cc == 0){
+    _home = false;
+    return;
+  }
+  _home = true;
+  findThisCC = String(cc);
 }
 
