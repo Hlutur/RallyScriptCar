@@ -53,8 +53,8 @@ boolean stopFlag = false;
 
 boolean rFindCC = false;
 boolean lFindCC = false;
-long findDir = 0.0;
-String findThisCC = "";
+float findDir = 0.0;
+String findThisCC = String("");
 
 void setup() 
 {
@@ -106,7 +106,7 @@ void setup()
   pixy.init();
   
   // Serial
-  Serial.begin(19200);
+  Serial.begin(9600);
   Serial.print(CARID);
   Serial.println(" ready to race!");
 }
@@ -115,14 +115,18 @@ boolean fastForward = false;
 
 void loop()
 {
-    if (fastForward){
-        getHeading();
-        if(!checkSafe()) {
-          Brake();
-          fastForward = false;
-          stopFlag = true;
-        }
-    }
+  if (fastForward){
+      getHeading();
+      if(!checkSafe()) {
+        Brake();
+        fastForward = false;
+        stopFlag = true;
+      }
+  }
+  if (lFindCC || rFindCC){
+    findCC();
+  }
+    
   if(Serial.available() > 0)
   {
     //Bluetooth Command
@@ -290,7 +294,7 @@ void Brake()
   delay(timeDelay);
 }
 
-int getHeading()
+float getHeading()
 {
   float heading = Compass.GetHeadingDegrees();
   delayMicroseconds(5);
@@ -304,7 +308,7 @@ int getHeading()
   Serial.print(heading);
   Serial.println("|deg");
   getPixyBlocks();
-  return 1;
+  return heading;
 }
 
 /**
@@ -401,23 +405,91 @@ void getPixyBlocks()
   }    
 }
 
+boolean CCinRange()
+{
+    int j;
+  uint16_t blocks;
+  char buf[32]; 
+  
+  // grab blocks!
+  blocks = pixy.getBlocks();
+  
+  // If there are detect blocks, print them!
+  if (blocks)
+  {
+    int j;
+    for (j=0;j<blocks;j++)
+    {
+      int x = pixy.blocks[j].x;
+      if (block.equals(findThisCC)){
+        if ((x>89)&&(x<111)){
+          return true;
+        } else {
+          // continue search
+        }
+      }
+    }
+  }
+  return false;  
+}
+
+static int turns = 0;
+static boolean check_for_turn = false;
 void initFindCC()
 {
   // 1. Read initial bearing
   findDir = getHeading();
+  turns = 0;
+  check_for_turn = false;
   // 2. Parse string representing CC to find
   int _cc = Serial.parseInt();
+  if (_cc == 0){
+    // invalid
+    rFindCC = false;
+    lFindCC = false;
+    Brake();
+    return;
+  }
   findThisCC = String(_cc);
+  Serial.print("Leter etter ");Serial.println(findThisCC);
 }
 
 void findCC()
 {
   // 1. Check if correct CC is within tolerance
-  long currentDir = getHeading();
-  // 2. If not - Check if past initial bearing. 
-  //       If true notify CC not found on MQTT
-  //     else 
-  //       Rotate a step in correct direction
-  // 3. If found, publish on MQTT
+  float currentDir = getHeading();
+  if (rFindCC && (!lFindCC)){
+    Right(PWM255);
+  } else if (lFindCC && (!rFindCC)){
+    Left(PWM255);
+  } else {
+    Brake;
+  }
+  delay(100); // rotate for 0.1 sek
+  turns++;
+  if (CCinRange()){
+    // stop turn - found item
+    rFindCC = false;
+    lFindCC = false;
+    Brake();
+    Serial.print("car/");
+    Serial.print(CARID);
+    Serial.print("/cc/");
+    Serial.print(findThisCC);
+    Serial.println("/InRange|true");
+  }
+  if (turns > 5){
+    if ((currentDir > findDir)&&(currentDir < (findDir+10)))
+    {
+      rFindCC = false;
+      lFindCC = false;
+      Brake();
+      Serial.print("car/");
+      Serial.print(CARID);
+      Serial.print("/cc/");
+      Serial.print(findThisCC);
+      Serial.println("/InRange|false");
+    }
+  }
 }
 
