@@ -56,6 +56,8 @@ boolean lFindCC = false;
 float findDir = 0.0;
 String findThisCC = String("");
 boolean _ccInRange = false;
+int _ccCenter = 100;
+boolean _home = false;
 
 void setup() 
 {
@@ -96,6 +98,9 @@ void loop()
 {
   if (fastForward){
       getHeading();
+      if (_home){
+        // adjustDirection();
+      }
       if(!checkSafe()) {
         Brake();
         fastForward = false;
@@ -196,8 +201,11 @@ void loop()
  */
 void Forward()
 {
-  analogWrite(ENA, PWM255);
-  analogWrite(ENB, PWM255);
+  // analogWrite(ENA, PWM255);
+  // analogWrite(ENB, PWM255);
+  digitalWrite(ENA,1);
+  digitalWrite(ENB,1);
+  
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
@@ -391,6 +399,7 @@ void getPixyBlocks()
       if (block.equals(findThisCC)){
         if ((x>89)&&(x<111)){
           _ccInRange = true;
+          _ccCenter = x;
         }
       }      
     }
@@ -400,32 +409,6 @@ void getPixyBlocks()
 boolean CCinRange()
 {
   return _ccInRange;
-  /*
-    int j;
-  uint16_t blocks;
-  char buf[32]; 
-  
-  // grab blocks!
-  blocks = pixy.getBlocks();
-  
-  // If there are detect blocks, print them!
-  if (blocks)
-  {
-    int j;
-    for (j=0;j<blocks;j++)
-    {
-      int x = pixy.blocks[j].x;
-      if (block.equals(findThisCC)){
-        if ((x>89)&&(x<111)){
-          return true;
-        } else {
-          // continue search
-        }
-      }
-    }
-  }
-  return false; 
- */ 
 }
 
 static int turns = 0;
