@@ -19,12 +19,12 @@ const int ENA = 5; // Port 5: Enable A
 const int ENB = 6; // Port 6: Enable B
 // IN1: 5v; IN2: GND -> Motor A Direction 1
 // IN1: GND; IN2: 5v -> Motor A Direction 2
-const int IN1 = 2; 
-const int IN2 = 3;
+const int IN1 = 2;  // rød - dirb
+const int IN2 = 3;  // ikke i bruk
 // IN3: 5v; IN4: GND -> Motor B Direction 1
 // IN3: GND; IN4: 5V -> Motor B Direction 2
-const int IN3 = 4;
-const int IN4 = 7;
+const int IN3 = 4; // gul - dira
+const int IN4 = 7; // ikke i bruk
 
 #define CARID "Rabbit"
 
@@ -47,7 +47,7 @@ const int timeDelay = 30;
 char incomingByte;
 
 // safe distance 20 cm
-const int SafeDistance = 15;
+const int SafeDistance = 0;
 const int SafeSideDistance = 10;
 boolean stopFlag = false;
 
@@ -201,15 +201,12 @@ void loop()
  */
 void Forward()
 {
-  // analogWrite(ENA, PWM255);
-  // analogWrite(ENB, PWM255);
-  digitalWrite(ENA,1);
-  digitalWrite(ENB,1);
-  
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  analogWrite(ENA, PWM255);
+  analogWrite(ENB, PWM255);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|f|direction");
@@ -222,14 +219,15 @@ void Backward()
 {
   analogWrite(ENA, PWM255);
   analogWrite(ENB, PWM255);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|b|direction");
   getHeading();
+  delay(100);
 }
 
 /** 
@@ -239,14 +237,15 @@ void Right(int pwm)
 {
   analogWrite(ENA, pwm);
   analogWrite(ENB, pwm);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|r|direction");
   getHeading();
+  delay(100);
 }
 
 /**
@@ -256,14 +255,16 @@ void Left(int pwm)
 {
   analogWrite(ENA, pwm);
   analogWrite(ENB, pwm);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
   Serial.print("car/");
   Serial.print(CARID);
+  Serial.print(pwm);
   Serial.println("/move|l|direction");
   getHeading();
+  delay(100);
 }
 
 /** 
