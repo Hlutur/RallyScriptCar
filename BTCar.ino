@@ -16,28 +16,27 @@ Pixy pixy;
  * Motor shield (L298N) 
  */
 const int ENA = 5; // Port 5: Enable A
-const int ENB = 6; // Port 6: Enable B
+const int ENB = 10; // Port 6: Enable B
 // IN1: 5v; IN2: GND -> Motor A Direction 1
 // IN1: GND; IN2: 5v -> Motor A Direction 2
-const int IN1 = 2;  // rød - dirb
-const int IN2 = 3;  // ikke i bruk
+const int IN1 = 6;  // rød - dirb
+const int IN2 = 7;  // ikke i bruk
 // IN3: 5v; IN4: GND -> Motor B Direction 1
 // IN3: GND; IN4: 5V -> Motor B Direction 2
-const int IN3 = 4; // gul - dira
-const int IN4 = 7; // ikke i bruk
+const int IN3 = 8; // gul - dira
+const int IN4 = 9; // ikke i bruk
 
 #define CARID "Rabbit"
 
 /** 
  * Ultrasonic Sensor
  */
-const int TrigPin = 8;// 8;
-const int EchoPin = 9;// 9;
-const int Head = 11;
+const int TrigPin = 4;// 8;
+const int EchoPin = 3;// 9;
 
 // PWM
-const int PWM255 = 255;
-const int PWM128 = 128;
+int PWM255 = 255;
+int PWM128 = 128;
 // Constants
 const int D = 1;
 const int timeDelay = 30;
@@ -46,8 +45,8 @@ const int timeDelay = 30;
  */
 char incomingByte;
 
-// safe distance 20 cm
-const int SafeDistance = 0;
+// safe distance 15 cm
+const int SafeDistance = 15;
 const int SafeSideDistance = 10;
 boolean stopFlag = false;
 
@@ -58,6 +57,7 @@ String findThisCC = String("");
 boolean _ccInRange = false;
 int _ccCenter = 100;
 boolean _home = false;
+float currentDir;
 
 void setup() 
 {
@@ -93,9 +93,14 @@ void setup()
 }
 
 boolean fastForward = false;
+unsigned long _scanPixy = millis();
 
 void loop()
 {
+  if ((_scanPixy+500)<millis()){
+    _scanPixy = millis();
+    getPixyBlocks();
+  }
   if (fastForward){
       getHeading();
       if (_home){
@@ -185,8 +190,19 @@ void loop()
       rFindCC = false;
       lFindCC = true;
       initFindCC();
+      break;
     case 'h': // auto home on CC. no parameters clears home mode
       initHome();
+      break;
+    case 'v': // set velocity
+      {
+        int velocity = Serial.parseInt();
+        if ((velocity >=0) && (velocity < 256)){
+          PWM255 = velocity;
+          PWM128 = velocity / 2;
+          Brake();
+        }
+      }
     default:
       break;  
     } //Switch
@@ -230,27 +246,41 @@ void Backward()
   delay(100);
 }
 
-/** 
- * Left
- */
 void Right(int pwm)
 {
+  float dir = Serial.parseInt();
   analogWrite(ENA, pwm);
   analogWrite(ENB, pwm);
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
+  getHeading();
+  if (dir > 0){
+    float newHead = currentDir - dir + 10;
+    boolean checkDir = true;
+    if (newHead < 0){
+      newHead = newHead + 360.0;
+      checkDir = false;
+    }
+    boolean turn = true;
+    while (turn){
+      getHeading();
+      if (checkDir){
+        turn = currentDir > newHead;
+      } else if (currentDir > newHead){
+        checkDir = true;
+      }
+    }
+    Brake();
+  } else {
+    delay(100);
+  }
   Serial.print("car/");
   Serial.print(CARID);
   Serial.println("/move|r|direction");
-  getHeading();
-  delay(100);
 }
 
-/**
- * Right
- */
 void Left(int pwm)
 {
   analogWrite(ENA, pwm);
@@ -259,12 +289,31 @@ void Left(int pwm)
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
+  getHeading();
+  if (dir > 0){
+    float newHead = currentDir + dir - 10;
+    boolean checkDir = true;
+    if (newHead < 0){
+      newHead = newHead - 360.0;
+      checkDir = false;
+    }
+    boolean turn = true;
+    while (turn){
+      getHeading();
+      if (checkDir){
+        turn = currentDir < newHead;
+      } else if (currentDir < newHead){
+        checkDir = true;
+      }
+    }
+    Brake();
+  } else {
+    delay(100);
+  }
   Serial.print("car/");
   Serial.print(CARID);
   Serial.print(pwm);
   Serial.println("/move|l|direction");
-  getHeading();
-  delay(100);
 }
 
 /** 
@@ -298,6 +347,7 @@ float getHeading()
   Serial.print(heading);
   Serial.println("|deg");
   getPixyBlocks();
+  currentDir = heading;
   return heading;
 }
 
@@ -385,22 +435,24 @@ void getPixyBlocks()
     for (j=0;j<blocks;j++)
     {
       int x = pixy.blocks[j].x;
-
-      Serial.print("car/");
-      Serial.print(CARID);
-      Serial.print("/cc/");
-      Serial.print(pixy.blocks[j].signature,OCT);
-      Serial.print("/{x:");
-      Serial.print(x);
-      Serial.print(",w:");
-      Serial.print(pixy.blocks[j].width);
-      Serial.println("}");
-      
-      String block = String(pixy.blocks[j].signature,OCT);
-      if (block.equals(findThisCC)){
-        if ((x>89)&&(x<111)){
-          _ccInRange = true;
-          _ccCenter = x;
+      String id = String(pixy.blocks[j].signature,OCT);
+      if (id.length()==3){
+        Serial.print("car/");
+        Serial.print(CARID);
+        Serial.print("/cc/");
+        Serial.print(id);
+        Serial.print("/{x:");
+        Serial.print(x);
+        Serial.print(",w:");
+        Serial.print(pixy.blocks[j].width);
+        Serial.println("}");
+        
+        String block = String(pixy.blocks[j].signature,OCT);
+        if (block.equals(findThisCC)){
+          if ((x>111)&&(x<131)){
+            _ccInRange = true;
+            _ccCenter = x;
+          }
         }
       }      
     }
@@ -436,7 +488,7 @@ void initFindCC()
 void findCC()
 {
   // 1. Check if correct CC is within tolerance
-  float currentDir = getHeading();
+  boolean giveUp = false;
   if (rFindCC && (!lFindCC)){
     Right(PWM255);
   } else if (lFindCC && (!rFindCC)){
@@ -457,9 +509,29 @@ void findCC()
     Serial.print(findThisCC);
     Serial.println("/InRange|true");
   }
-  if (turns > 5){
+  if (rFindCC){
+    if (currentDir < findDir){
+      check_for_turn = true;
+    }
+    if (currentDir > findDir){
+      giveUp = true;
+    }
+  }
+  if (lFindCC){
+    if (currentDir > findDir){
+      check_for_turn = true;
+    }
+    if (currentDir < findDir){
+      giveUp = true;
+    }
+  }
+  if (turns > 3){
     if ((currentDir > findDir)&&(currentDir < (findDir+10)))
     {
+      giveUp = true;
+    }
+  }
+  if (giveUp){
       rFindCC = false;
       lFindCC = false;
       Brake();
@@ -468,7 +540,6 @@ void findCC()
       Serial.print("/cc/");
       Serial.print(findThisCC);
       Serial.println("/InRange|false");
-    }
   }
 }
 
