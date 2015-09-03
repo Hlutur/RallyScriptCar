@@ -26,7 +26,8 @@ const int IN2 = 7;  // ikke i bruk
 const int IN3 = 8; // gul - dira
 const int IN4 = 9; // ikke i bruk
 
-#define CARID "Rabbit"
+#define CARID "Turtle"
+#define PRETOPIC "fullstackfest/car/"
 
 /** 
  * Ultrasonic Sensor
@@ -46,7 +47,7 @@ const int timeDelay = 30;
 char incomingByte;
 
 // safe distance 15 cm
-const int SafeDistance = 15;
+const int SafeDistance = 20;
 const int SafeSideDistance = 10;
 boolean stopFlag = false;
 
@@ -58,6 +59,7 @@ boolean _ccInRange = false;
 int _ccCenter = 100;
 boolean _home = false;
 float currentDir;
+float _forwardDir;
 
 void setup() 
 {
@@ -103,9 +105,7 @@ void loop()
   }
   if (fastForward){
       getHeading();
-      if (_home){
-        // adjustDirection();
-      }
+      adjustDir();
       if(!checkSafe()) {
         Brake();
         fastForward = false;
@@ -223,9 +223,26 @@ void Forward()
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|f|direction");
+  Serial.println("/move|{dir:'f'}");
+  getHeading();
+  _forwardDir = currentDir;
+}
+
+void adjustDir()
+{
+  if ((currentDir - _forwardDir)>5.0){
+    // Serial.print("L adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+    analogWrite(ENA, 0);
+    delay(300);
+    analogWrite(ENA, PWM255);
+  } else if ((currentDir - _forwardDir)<-5.0){
+    // Serial.print("R adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+    analogWrite(ENB, 0);
+    delay(300);
+    analogWrite(ENB, PWM255);
+  }
 }
 
 /** 
@@ -239,14 +256,14 @@ void Backward()
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|b|direction");
+  Serial.println("/move|{dir:'b'}");
   getHeading();
   delay(100);
 }
 
-void Right(int pwm)
+void Right2(int pwm)
 {
   float dir = Serial.parseInt();
   analogWrite(ENA, pwm);
@@ -276,44 +293,145 @@ void Right(int pwm)
   } else {
     delay(100);
   }
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|r|direction");
+  Serial.println("/move|{dir:'r'}");
+}
+
+void Right(int pwm)
+{
+  float dir = Serial.parseInt();
+  getHeading();
+  float newHead = currentDir - dir;
+  newHead = (newHead < 10) ? 10 : newHead;
+  Serial.println("right");
+  float origHead = currentDir;
+  analogWrite(ENA, pwm);
+  analogWrite(ENB, pwm);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  boolean turn = true;
+  if (dir > 0.0){
+    dir = (dir < 0.0) ? 0.0 : ((dir > 180.0 ) ? 180.0 : dir);
+    float lastHead = currentDir;
+    int koeff = 0;
+    {
+      while (turn){
+        delay(5);
+        getHeading();
+        if ((lastHead < currentDir)&&((currentDir-lastHead)>100)){
+          koeff = koeff--;
+        }
+        float calcDir = currentDir - (360.0*koeff);
+        // Serial.print(newHead);Serial.print(" ");Serial.print(newHead + dir);Serial.print(" ");Serial.print(calcDir);Serial.print(" ");Serial.print(lastHead);Serial.print(" ");
+        // Serial.print(currentDir);Serial.print(" ");Serial.println(koeff);
+        lastHead = currentDir;
+        if (calcDir <= newHead){
+          turn = false;
+        }
+      }
+    }
+  } else {
+    delay(100);
+  }
+  Brake();
+  Serial.print(PRETOPIC);
+  Serial.print(CARID);
+  Serial.println("/move|{dir:'r'}");
+  getHeading();
 }
 
 void Left(int pwm)
 {
+  float dir = Serial.parseInt();
+  getHeading();
+  float newHead = currentDir + dir;
+  newHead = (newHead < 10) ? 10 : newHead;
+  float origHead = currentDir;
   analogWrite(ENA, pwm);
   analogWrite(ENB, pwm);
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  getHeading();
-  if (dir > 0){
-    float newHead = currentDir + dir - 10;
-    boolean checkDir = true;
-    if (newHead < 0){
-      newHead = newHead - 360.0;
-      checkDir = false;
-    }
-    boolean turn = true;
-    while (turn){
-      getHeading();
-      if (checkDir){
-        turn = currentDir < newHead;
-      } else if (currentDir < newHead){
-        checkDir = true;
+  boolean turn = true;
+  if (dir > 0.0){
+    dir = (dir < 0.0) ? 0.0 : ((dir > 180.0 ) ? 180.0 : dir);
+    float lastHead = currentDir;
+    int koeff = 0;
+    {
+      while (turn){
+        delay(5);
+        getHeading();
+        if ((lastHead > currentDir)&&((lastHead-currentDir)>100)){
+          koeff = koeff++;
+        }
+        lastHead = currentDir;
+        float calcDir = currentDir + (360.0*koeff);
+        if (calcDir >= newHead){
+          turn = false;
+        }
       }
     }
-    Brake();
   } else {
     delay(100);
   }
-  Serial.print("car/");
+  Brake();
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
   Serial.print(pwm);
-  Serial.println("/move|l|direction");
+  Serial.println("/move|{dir:'l'}");
+  getHeading();
+}
+
+void Left2(int pwm)
+{
+  float dir = Serial.parseInt();
+  if (dir > 0.0){
+    dir = (dir < 0.0) ? 0.0 : ((dir > 180.0 ) ? 180.0 : dir);
+    getHeading();
+    float newHead = currentDir + dir - 10;
+    newHead = (newHead < 10) ? 10 : newHead;
+    float origHead = currentDir;
+    analogWrite(ENA, pwm);
+    analogWrite(ENB, pwm);
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+    boolean turn = true;
+    float lastHead = currentDir;
+    if (newHead > 360.0){
+      Left(360);
+      int l = newHead-360;
+      Left(l);
+    } else
+    {
+      while (turn){
+        delay(50);
+        getHeading();
+        turn = !(newHead < currentDir);
+        if (lastHead > currentDir){
+          turn > false;
+        }
+        if ((currentDir < 90.0) && (newHead > 300.0)){
+          turn = false;
+        }
+        // Serial.print(origHead);Serial.print(" ");Serial.print(currentDir);Serial.print(" ");Serial.print(newHead);Serial.print(" ");Serial.println(lastHead);
+        lastHead = currentDir;
+        Serial.println(turn);
+      }
+    }
+  } else {
+    delay(100);
+  }
+  Brake();
+  Serial.print(PRETOPIC);
+  Serial.print(CARID);
+  Serial.print(pwm);
+  Serial.println("/move|{dir:'l'}");
 }
 
 /** 
@@ -327,25 +445,25 @@ void Brake()
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, HIGH);
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|stop|direction");
+  Serial.println("/move|{dir:'stop'}");
   delay(timeDelay);
 }
 
 float getHeading()
 {
   float heading = Compass.GetHeadingDegrees();
-  delayMicroseconds(5);
+  delayMicroseconds(2);
   heading += Compass.GetHeadingDegrees();
-  delayMicroseconds(5);
+  delayMicroseconds(2);
   heading += Compass.GetHeadingDegrees();
   heading = heading / 3;
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.print("/heading|");
+  Serial.print("/heading|{deg:");
   Serial.print(heading);
-  Serial.println("|deg");
+  Serial.println("}");
   getPixyBlocks();
   currentDir = heading;
   return heading;
@@ -373,11 +491,11 @@ int getDistance()
   } else {
     _last = result;
   }
-  Serial.print("car/");
+  Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.print("/dist|");
+  Serial.print("/dist|{cm:");
   Serial.print(result);
-  Serial.println("|cm");
+  Serial.println("}");
   return result;
 }
 
@@ -437,11 +555,11 @@ void getPixyBlocks()
       int x = pixy.blocks[j].x;
       String id = String(pixy.blocks[j].signature,OCT);
       if (id.length()==3){
-        Serial.print("car/");
+        Serial.print(PRETOPIC);
         Serial.print(CARID);
         Serial.print("/cc/");
         Serial.print(id);
-        Serial.print("/{x:");
+        Serial.print("|{x:");
         Serial.print(x);
         Serial.print(",w:");
         Serial.print(pixy.blocks[j].width);
@@ -482,7 +600,7 @@ void initFindCC()
     return;
   }
   findThisCC = String(cc);
-  Serial.print("Leter etter ");Serial.println(findThisCC);
+  // Serial.print("Leter etter ");Serial.println(findThisCC);
 }
 
 void findCC()
@@ -503,11 +621,11 @@ void findCC()
     rFindCC = false;
     lFindCC = false;
     Brake();
-    Serial.print("car/");
+    Serial.print(PRETOPIC);
     Serial.print(CARID);
     Serial.print("/cc/");
     Serial.print(findThisCC);
-    Serial.println("/InRange|true");
+    Serial.println("|{inRange:'true'}");
   }
   if (rFindCC){
     if (currentDir < findDir){
@@ -535,11 +653,11 @@ void findCC()
       rFindCC = false;
       lFindCC = false;
       Brake();
-      Serial.print("car/");
+      Serial.print(PRETOPIC);
       Serial.print(CARID);
       Serial.print("/cc/");
       Serial.print(findThisCC);
-      Serial.println("/InRange|false");
+      Serial.println("|{inRange:'false'}");
   }
 }
 
