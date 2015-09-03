@@ -566,9 +566,9 @@ void getPixyBlocks()
       if (id.length()==3){
         Serial.print(PRETOPIC);
         Serial.print(CARID);
-        Serial.print("/cc/");
+        Serial.print("/cc|{\"id\":");
         Serial.print(id);
-        Serial.print("|{\"x\":");
+        Serial.print(",\"x\":");
         Serial.print(x);
         Serial.print(",\"w\":");
         Serial.print(pixy.blocks[j].width);
@@ -632,9 +632,9 @@ void findCC()
     Brake();
     Serial.print(PRETOPIC);
     Serial.print(CARID);
-    Serial.print("/cc/");
+    Serial.print("/cc|{\"id\":");
     Serial.print(findThisCC);
-    Serial.println("|{\"inRange\":\"true\"}");
+    Serial.println(",\"inRange\":\"true\"}");
   }
   if (rFindCC){
     if (currentDir < findDir){
@@ -664,9 +664,9 @@ void findCC()
       Brake();
       Serial.print(PRETOPIC);
       Serial.print(CARID);
-      Serial.print("/cc/");
+      Serial.print("/cc|{\"id\":");
       Serial.print(findThisCC);
-      Serial.println("|{\"inRange\":\"false\"}");
+      Serial.println(",\"inRange\":\"false\"}");
   }
 }
 
