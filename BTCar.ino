@@ -96,12 +96,17 @@ void setup()
 
 boolean fastForward = false;
 unsigned long _scanPixy = millis();
+unsigned long _heartBeat = millis();
 
 void loop()
 {
   if ((_scanPixy+500)<millis()){
     _scanPixy = millis();
     getPixyBlocks();
+  }
+  if ((_heartBeat+5000)<millis()){
+    _heartBeat = millis();
+    doHeartBeat();
   }
   if (fastForward){
       getHeading();
@@ -225,22 +230,28 @@ void Forward()
   digitalWrite(IN4, HIGH);
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|{dir:'f'}");
+  Serial.println("/move|{\"dir\":\"f\"}");
   getHeading();
   _forwardDir = currentDir;
 }
 
 void adjustDir()
 {
-  if ((currentDir - _forwardDir)>5.0){
-    // Serial.print("L adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+  int count = 0;
+  if ((currentDir - _forwardDir)>4.0){
     analogWrite(ENA, 0);
-    delay(300);
+    while ((count++ < 10)&&((currentDir - _forwardDir)> -1.0)){
+      Serial.print("L adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+      delay(300);
+      getHeading();
+    }
     analogWrite(ENA, PWM255);
-  } else if ((currentDir - _forwardDir)<-5.0){
-    // Serial.print("R adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+  } else if ((currentDir - _forwardDir)<-4.0){
     analogWrite(ENB, 0);
-    delay(300);
+    while ((count++ < 10)&&((currentDir - _forwardDir)< 1.0)){
+      Serial.print("R adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
+      delay(300);
+    }
     analogWrite(ENB, PWM255);
   }
 }
@@ -258,7 +269,7 @@ void Backward()
   digitalWrite(IN4, LOW);
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|{dir:'b'}");
+  Serial.println("/move|{\"dir\":\"b\"}");
   getHeading();
   delay(100);
 }
@@ -295,7 +306,7 @@ void Right2(int pwm)
   }
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|{dir:'r'}");
+  Serial.println("/move|{\"dir\":\"r\"}");
 }
 
 void Right(int pwm)
@@ -339,7 +350,7 @@ void Right(int pwm)
   Brake();
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|{dir:'r'}");
+  Serial.println("/move|{\"dir\":\"r\"}");
   getHeading();
 }
 
@@ -382,7 +393,7 @@ void Left(int pwm)
   Serial.print(PRETOPIC);
   Serial.print(CARID);
   Serial.print(pwm);
-  Serial.println("/move|{dir:'l'}");
+  Serial.println("/move|{\"dir\":\"l\"}");
   getHeading();
 }
 
@@ -431,7 +442,7 @@ void Left2(int pwm)
   Serial.print(PRETOPIC);
   Serial.print(CARID);
   Serial.print(pwm);
-  Serial.println("/move|{dir:'l'}");
+  Serial.println("/move|{\"dir\":\"l\"}");
 }
 
 /** 
@@ -447,7 +458,7 @@ void Brake()
   digitalWrite(IN4, HIGH);
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.println("/move|{dir:'stop'}");
+  Serial.println("/move|{\"dir\":\"stop\"}");
   delay(timeDelay);
 }
 
@@ -461,7 +472,7 @@ float getHeading()
   heading = heading / 3;
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.print("/heading|{deg:");
+  Serial.print("/heading|{\"deg\":");
   Serial.print(heading);
   Serial.println("}");
   getPixyBlocks();
@@ -493,7 +504,7 @@ int getDistance()
   }
   Serial.print(PRETOPIC);
   Serial.print(CARID);
-  Serial.print("/dist|{cm:");
+  Serial.print("/dist|{\"cm\":");
   Serial.print(result);
   Serial.println("}");
   return result;
@@ -559,9 +570,9 @@ void getPixyBlocks()
         Serial.print(CARID);
         Serial.print("/cc/");
         Serial.print(id);
-        Serial.print("|{x:");
+        Serial.print("|{\"x\":");
         Serial.print(x);
-        Serial.print(",w:");
+        Serial.print(",\"w\":");
         Serial.print(pixy.blocks[j].width);
         Serial.println("}");
         
@@ -625,7 +636,7 @@ void findCC()
     Serial.print(CARID);
     Serial.print("/cc/");
     Serial.print(findThisCC);
-    Serial.println("|{inRange:'true'}");
+    Serial.println("|{\"inRange\":\"true\"}");
   }
   if (rFindCC){
     if (currentDir < findDir){
@@ -657,8 +668,17 @@ void findCC()
       Serial.print(CARID);
       Serial.print("/cc/");
       Serial.print(findThisCC);
-      Serial.println("|{inRange:'false'}");
+      Serial.println("|{\"inRange\":\"false\"}");
   }
+}
+
+void doHeartBeat()
+{
+      Serial.print(PRETOPIC);
+      Serial.print(CARID);
+      Serial.print("/heartbeat|{\"t\":");
+      Serial.print(_heartBeat / 1000.0 );
+      Serial.println(" }");
 }
 
 void initHome()
