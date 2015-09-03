@@ -237,21 +237,15 @@ void Forward()
 
 void adjustDir()
 {
-  int count = 0;
-  if ((currentDir - _forwardDir)>4.0){
+  if ((currentDir - _forwardDir)>5.0){
+    // Serial.print("L adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
     analogWrite(ENA, 0);
-    while ((count++ < 10)&&((currentDir - _forwardDir)> -1.0)){
-      Serial.print("L adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
-      delay(300);
-      getHeading();
-    }
+    delay(300);
     analogWrite(ENA, PWM255);
-  } else if ((currentDir - _forwardDir)<-4.0){
+  } else if ((currentDir - _forwardDir)<-5.0){
+    // Serial.print("R adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
     analogWrite(ENB, 0);
-    while ((count++ < 10)&&((currentDir - _forwardDir)< 1.0)){
-      Serial.print("R adjusting ");Serial.print(currentDir);Serial.print(" ");Serial.println(_forwardDir);
-      delay(300);
-    }
+    delay(300);
     analogWrite(ENB, PWM255);
   }
 }
@@ -272,6 +266,7 @@ void Backward()
   Serial.println("/move|{\"dir\":\"b\"}");
   getHeading();
   delay(100);
+  getDistance();
 }
 
 void Right2(int pwm)
@@ -496,7 +491,7 @@ int getDistance()
   // Low
   digitalWrite(TrigPin, LOW);
   time = pulseIn(EchoPin, HIGH);
-  result = round(distance = (time / 2) / 29.1);
+  result = round(distance = (time / 2) / 34.3); // speed of sound 343 m/s 20C
   if (result > 1000) {
     result = _last;
   } else {
@@ -527,11 +522,13 @@ boolean checkSafe()
 
 boolean leftSafe()
 {
+  getDistance();
   return true; // Always safe without the servo
 }
 
 boolean rightSafe()
 {
+  getDistance();
   return true; // Always safe without the servo
 }
 
@@ -544,6 +541,7 @@ void StopMove()
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
+  getDistance();
 }
 
 void getPixyBlocks()
